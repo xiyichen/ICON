@@ -47,6 +47,7 @@ import numpy as np
 import torch
 
 torch.backends.cudnn.benchmark = True
+os.environ['OMP_NUM_THREADS'] = '4'
 
 if __name__ == "__main__":
 

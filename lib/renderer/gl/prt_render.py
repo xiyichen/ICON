@@ -154,12 +154,13 @@ class PRTRender(CamRender):
             self.vert_label_buffer[mat_name] = glGenBuffers(1)
         glBindBuffer(GL_ARRAY_BUFFER, self.vert_label_buffer[mat_name])
         glBufferData(GL_ARRAY_BUFFER, self.vert_label_data[mat_name], GL_STATIC_DRAW)
-
-        self.uv_data[mat_name] = uvs[faces_uvs.reshape([-1])]
-        if mat_name not in self.uv_buffer.keys():
-            self.uv_buffer[mat_name] = glGenBuffers(1)
-        glBindBuffer(GL_ARRAY_BUFFER, self.uv_buffer[mat_name])
-        glBufferData(GL_ARRAY_BUFFER, self.uv_data[mat_name], GL_STATIC_DRAW)
+        
+        if faces_uvs is not None:
+            self.uv_data[mat_name] = uvs[faces_uvs.reshape([-1])]
+            if mat_name not in self.uv_buffer.keys():
+                self.uv_buffer[mat_name] = glGenBuffers(1)
+            glBindBuffer(GL_ARRAY_BUFFER, self.uv_buffer[mat_name])
+            glBufferData(GL_ARRAY_BUFFER, self.uv_data[mat_name], GL_STATIC_DRAW)
 
         self.norm_data[mat_name] = norms[faces_nml.reshape([-1])]
         if mat_name not in self.norm_buffer.keys():

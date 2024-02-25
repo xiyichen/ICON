@@ -170,11 +170,11 @@ def mesh_edge_loss(meshes, target_length: float = 0.0):
 
 def remesh(mesh, obj_path, device):
 
-    mesh = mesh.simplify_quadratic_decimation(50000)
-    mesh = trimesh.smoothing.filter_humphrey(
-        mesh, alpha=0.1, beta=0.5, iterations=10, laplacian_operator=None
-    )
-    mesh.export(obj_path)
+    # mesh = mesh.simplify_quadratic_decimation(50000)
+    # mesh = trimesh.smoothing.filter_humphrey(
+    #     mesh, alpha=0.1, beta=0.5, iterations=10, laplacian_operator=None
+    # )
+    # mesh.export(obj_path)
     verts_pr = torch.tensor(mesh.vertices).float().unsqueeze(0).to(device)
     faces_pr = torch.tensor(mesh.faces).long().unsqueeze(0).to(device)
 

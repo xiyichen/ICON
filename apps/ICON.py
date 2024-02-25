@@ -26,6 +26,7 @@ import numpy as np
 from torch import nn
 from skimage.transform import resize
 import pytorch_lightning as pl
+import pdb
 
 torch.backends.cudnn.benchmark = True
 
@@ -658,6 +659,7 @@ class ICON(pl.LightningModule):
             )
 
     def test_single(self, batch):
+        # pdb.set_trace()
 
         self.netG.eval()
         self.netG.training = False
@@ -679,6 +681,7 @@ class ICON(pl.LightningModule):
             sdf = self.reconEngine(
                 opt=self.cfg, netG=self.netG, features=features, proj_matrix=None
             )
+        pdb.set_trace()
 
         verts_pr, faces_pr = self.reconEngine.export_mesh(sdf)
 

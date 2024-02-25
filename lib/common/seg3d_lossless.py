@@ -26,7 +26,7 @@ import numpy as np
 import torch.nn.functional as F
 import mcubes
 from kaolin.ops.conversions import voxelgrids_to_trianglemeshes
-import logging
+import logging, pdb
 
 logging.getLogger("lightning").setLevel(logging.ERROR)
 
@@ -268,6 +268,7 @@ class Seg3dLossless(nn.Module):
             # first step
             if torch.equal(resolution, self.resolutions[0]):
                 coords = self.init_coords.clone()    # torch.long
+                pdb.set_trace()
                 occupancys = self.batch_eval(coords, **kwargs)
                 occupancys = occupancys.view(self.batchsize, self.channels, D, H, W)
 

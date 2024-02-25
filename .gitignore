@@ -19,3 +19,6 @@ results
 results/
 libmesh/
 libvoxelize/
+examples*/
+*.sh
+sample_data/

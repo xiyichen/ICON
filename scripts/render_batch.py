@@ -20,6 +20,23 @@ numba.config.THREADING_LAYER = 'workqueue'
 
 sys.path.append(os.path.join(os.getcwd()))
 
+def unit_vector(vector):
+    """ Returns the unit vector of the vector.  """
+    return vector / np.linalg.norm(vector)
+
+def angle_between(v1, v2):
+    """ Returns the angle in radians between vectors 'v1' and 'v2'::
+
+            >>> angle_between((1, 0, 0), (0, 1, 0))
+            1.5707963267948966
+            >>> angle_between((1, 0, 0), (1, 0, 0))
+            0.0
+            >>> angle_between((1, 0, 0), (-1, 0, 0))
+            3.141592653589793
+    """
+    v1_u = unit_vector(v1)
+    v2_u = unit_vector(v2)
+    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
 
 def render_sides(render_types, rndr, rndr_smpl, y, save_folder, subject, smpl_type, side):
 
@@ -56,36 +73,44 @@ def render_subject(subject, dataset, save_folder, rotation, size, render_types, 
 
         initialize_GL_context(width=size, height=size, egl=egl)
 
-        scale = 100.0
+        scale = 180
         up_axis = 1
-        smpl_type = "smplx"
+        smpl_type = "flame"
 
-        mesh_file = os.path.join(f'./data/{dataset}/scans/{subject}', f'{subject}.obj')
+        mesh_file = f'/cluster/scratch/xiychen/data/thuman_head_meshes_all/{subject}.obj'
+        tex_file = f'/cluster/scratch/xiychen/data/thuman/{subject}/material0.jpeg'
+        normalization_file = f'/cluster/scratch/xiychen/data/thuman_head_normalization/{subject}.npy'
+        fit_file = f'/cluster/scratch/xiychen/data/thuman_smplx/{subject}/smplx_param.pkl'
         smplx_file = f'./data/{dataset}/{smpl_type}/{subject}.obj'
-        tex_file = f'./data/{dataset}/scans/{subject}/material0.jpeg'
-        fit_file = f'./data/{dataset}/{smpl_type}/{subject}.pkl'
-
+        
         vertices, faces, normals, faces_normals, textures, face_textures = load_scan(
             mesh_file, with_normal=True, with_texture=True
         )
-
-        # center
-        scan_scale = 1.8 / (vertices.max(0)[up_axis] - vertices.min(0)[up_axis])
-        rescale_fitted_body, joints = load_fit_body(
-            fit_file, scale, smpl_type=smpl_type, smpl_gender='male'
+        
+        rescale_fitted_body, joints = load_flame(
+            fit_file, normalization_file, scale, smpl_type='smplx', smpl_gender='male'
         )
-
+        
+        nose_outward_vec = joints[55] - (rescale_fitted_body.vertices.max(0)+rescale_fitted_body.vertices.min(0))/2
+        
+        angle = np.rad2deg(angle_between(nose_outward_vec, np.array([-1, 0, 0])))
+        
         os.makedirs(os.path.dirname(smplx_file), exist_ok=True)
-        trimesh.Trimesh(rescale_fitted_body.vertices / scale,
+        trimesh.Trimesh(rescale_fitted_body.vertices,
                         rescale_fitted_body.faces).export(smplx_file)
-
+        
+        # center
+        scan_scale = 1.0
         vertices *= scale
-        vmin = vertices.min(0)
-        vmax = vertices.max(0)
-        vmed = joints[0]
-        vmed[up_axis] = 0.5 * (vmax[up_axis] + vmin[up_axis])
+        rescale_fitted_body.vertices *= scale
+        vmin = rescale_fitted_body.vertices.min(0)
+        vmax = rescale_fitted_body.vertices.max(0)
+        vmed = 0.5 * (vmax + vmin)
+        vmed[up_axis] += 35
+        # vmed = np.array([0,0,0])
 
         rndr_smpl = ColorRender(width=size, height=size, egl=egl)
+        
         rndr_smpl.set_mesh(
             rescale_fitted_body.vertices, rescale_fitted_body.faces, rescale_fitted_body.vertices,
             rescale_fitted_body.vertex_normals
@@ -120,13 +145,20 @@ def render_subject(subject, dataset, save_folder, rotation, size, render_types, 
         rndr.set_albedo(texture_image)
 
         for y in range(0, 360, 360 // rotation):
+            if nose_outward_vec[2] <= 0:
+                if not (y >= angle and y <= angle + 180):
+                    continue
+            else:
+                if not ((y >= 0 and y <= (180 - angle)) or (y >= (360 - angle))):
+                    continue
 
-            cam.near = -100
-            cam.far = 100
+            cam.near = -150
+            cam.far = 150
             cam.sanity_check()
 
-            R = opengl_util.make_rotate(0, math.radians(y), 0)
-            R_B = opengl_util.make_rotate(0, math.radians((y + 180) % 360), 0)
+            azimuth = random.uniform(-20,20)
+            R = opengl_util.make_rotate(math.radians(azimuth), math.radians(y), 0)
+            R_B = opengl_util.make_rotate(math.radians(azimuth), math.radians((y + 180) % 360), 0)
 
             rndr.rot_matrix = R
             rndr.set_camera(cam)
@@ -174,8 +206,8 @@ def render_subject(subject, dataset, save_folder, rotation, size, render_types, 
             # ==================================================================
 
             # back render
-            cam.near = 100
-            cam.far = -100
+            cam.near = 150
+            cam.far = -150
             cam.sanity_check()
             rndr.set_camera(cam)
             rndr_smpl.set_camera(cam)
@@ -192,8 +224,8 @@ def render_subject(subject, dataset, save_folder, rotation, size, render_types, 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-dataset', '--dataset', type=str, default="thuman2", help='dataset name')
-    parser.add_argument('-out_dir', '--out_dir', type=str, default="./debug", help='output dir')
+    parser.add_argument('-dataset', '--dataset', type=str, default="thuman2_head", help='dataset name')
+    parser.add_argument('-out_dir', '--out_dir', type=str, default="./data", help='output dir')
     parser.add_argument('-num_views', '--num_views', type=int, default=36, help='number of views')
     parser.add_argument('-size', '--size', type=int, default=512, help='render size')
     parser.add_argument(
@@ -214,7 +246,7 @@ if __name__ == "__main__":
 
     # shoud be put after PYOPENGL_PLATFORM
     import lib.renderer.opengl_util as opengl_util
-    from lib.renderer.mesh import load_fit_body, load_scan, compute_tangent
+    from lib.renderer.mesh import load_fit_body, load_flame, load_scan, compute_tangent
     import lib.renderer.prt_util as prt_util
     from lib.renderer.gl.init_gl import initialize_GL_context
     from lib.renderer.gl.prt_render import PRTRender
@@ -229,14 +261,15 @@ if __name__ == "__main__":
     os.makedirs(current_out_dir, exist_ok=True)
     print(f"Output dir: {current_out_dir}")
 
-    subjects = np.loadtxt(f"./data/{args.dataset}/all.txt", dtype=str)
+    # subjects = np.loadtxt(f"./data/{args.dataset}/all.txt", dtype=str)
 
     if args.debug:
-        subjects = subjects[:2]
-        render_types = ["light", "normal", "depth"]
+        subjects = ['0525']
+        render_types = ["normal", "depth"]
     else:
+        subjects = [str(i).zfill(4) for i in range(526)]
         random.shuffle(subjects)
-        render_types = ["light", "normal"]
+        render_types = ["normal"]
 
     print(f"Rendering types: {render_types}")
 
