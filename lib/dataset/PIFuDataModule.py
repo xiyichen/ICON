@@ -28,7 +28,7 @@ class PIFuDataModule(pl.LightningDataModule):
     def setup(self, stage):
 
         if stage == 'fit':
-            self.train_dataset = PIFuDataset(cfg=self.cfg, split="train")
+            self.train_dataset = PIFuDataset(cfg=self.cfg, split="train", vis=True)
             self.val_dataset = PIFuDataset(cfg=self.cfg, split="val")
             self.data_size = {'train': len(self.train_dataset), 'val': len(self.val_dataset)}
 

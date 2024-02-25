@@ -75,12 +75,15 @@ def render_subject(subject, dataset, save_folder, rotation, size, render_types, 
 
         scale = 180
         up_axis = 1
-        smpl_type = "flame"
+        smpl_type = "smplx"
 
-        mesh_file = f'/cluster/scratch/xiychen/data/thuman_head_meshes_all/{subject}.obj'
-        tex_file = f'/cluster/scratch/xiychen/data/thuman/{subject}/material0.jpeg'
-        normalization_file = f'/cluster/scratch/xiychen/data/thuman_head_normalization/{subject}.npy'
-        fit_file = f'/cluster/scratch/xiychen/data/thuman_smplx/{subject}/smplx_param.pkl'
+        # mesh_file = f'/cluster/scratch/xiychen/data/thuman_head_meshes_all/{subject}.obj'
+        mesh_file = os.path.join(f'./data/{dataset}/scans/{subject}', f'{subject}.obj')
+        # tex_file = f'/cluster/scratch/xiychen/data/thuman/{subject}/material0.jpeg'
+        tex_file = f'./data/{dataset}/scans/{subject}/material0.jpeg'
+        normalization_file = f'./data/{dataset}/normalizations/{subject}.npy'
+        # fit_file = f'/cluster/scratch/xiychen/data/thuman_smplx/{subject}/smplx_param.pkl'
+        fit_file = f'./data/{dataset}/{smpl_type}/{subject}.pkl'
         smplx_file = f'./data/{dataset}/{smpl_type}/{subject}.obj'
         
         vertices, faces, normals, faces_normals, textures, face_textures = load_scan(
@@ -267,7 +270,7 @@ if __name__ == "__main__":
         subjects = ['0525']
         render_types = ["normal", "depth"]
     else:
-        subjects = [str(i).zfill(4) for i in range(526)]
+        subjects = [str(i).zfill(4) for i in range(70,75)]
         random.shuffle(subjects)
         render_types = ["normal"]
 

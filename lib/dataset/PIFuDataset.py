@@ -14,7 +14,7 @@
 #
 # Contact: ps-license@tuebingen.mpg.de
 
-from lib.renderer.mesh import load_fit_body, compute_normal_batch
+from lib.renderer.mesh import load_fit_body, load_flame, compute_normal_batch
 from lib.dataset.body_model import TetraSMPLModel
 from lib.common.render import Render
 from lib.dataset.mesh_util import *
@@ -29,6 +29,10 @@ import trimesh
 import torch
 import vedo
 import torchvision.transforms as transforms
+import glob
+from pyntcloud import PyntCloud
+import pandas as pd
+import pdb
 
 cape_gender = {
     "male":
@@ -90,10 +94,10 @@ class PIFuDataset():
 
         self.feat_keys = self.base_keys + [f"smpl_{feat_name}" for feat_name in self.feat_names]
 
-        if self.split == 'train':
-            self.rotations = np.arange(0, 360, 360 / self.opt.rotation_num).astype(np.int32)
-        else:
-            self.rotations = range(0, 360, 120)
+        # if self.split == 'train':
+        #     self.rotations = np.arange(0, 360, 360 / self.opt.rotation_num).astype(np.int32)
+        # else:
+        #     self.rotations = range(0, 360, 120)
 
         self.datasets_dict = {}
 
@@ -107,13 +111,18 @@ class PIFuDataset():
             mesh_dir = osp.join(dataset_dir, "scans")
             smplx_dir = osp.join(dataset_dir, "smplx")
             smpl_dir = osp.join(dataset_dir, "smpl")
+            normalization_dir = osp.join(dataset_dir, "normalizations")
 
             self.datasets_dict[dataset] = {
                 "smplx_dir": smplx_dir,
                 "smpl_dir": smpl_dir,
                 "mesh_dir": mesh_dir,
+                "normalization_dir": normalization_dir,
                 "scale": self.scales[dataset_id]
             }
+            
+            
+            # self.subject_list = self.get_subject_list(split)
 
             if split == 'train':
                 self.datasets_dict[dataset].update(
@@ -192,20 +201,25 @@ class PIFuDataset():
         return subject_list
 
     def __len__(self):
-        return len(self.subject_list) * len(self.rotations)
+        return len(self.subject_list) * 18
 
     def __getitem__(self, index):
 
         # only pick the first data if overfitting
         if self.overfit:
             index = 0
-
-        rid = index % len(self.rotations)
-        mid = index // len(self.rotations)
-
-        rotation = self.rotations[rid]
+        
+        mid = index // 18
         subject = self.subject_list[mid].split("/")[1]
         dataset = self.subject_list[mid].split("/")[0]
+            
+        rotations = glob.glob(f'/cluster/scratch/xiychen/ICON/data/thuman2_head_36views/{str(subject).zfill(4)}/T_normal_F/*.png')
+        rotations = [int(i.split('/')[-1].split('.')[0]) for i in rotations]
+        rotations.sort()
+        
+        rid = index % 18
+
+        rotation = rotations[rid]
         render_folder = "/".join([dataset + f"_{self.opt.rotation_num}views", subject])
 
         # setup paths
@@ -216,11 +230,11 @@ class PIFuDataset():
             'scale': self.datasets_dict[dataset]["scale"],
             'calib_path': osp.join(self.root, render_folder, 'calib', f'{rotation:03d}.txt'),
             'image_path': osp.join(self.root, render_folder, 'render', f'{rotation:03d}.png'),
-            'smpl_path': osp.join(self.datasets_dict[dataset]["smpl_dir"], f"{subject}.obj"),
+            # 'smpl_path': osp.join(self.datasets_dict[dataset]["smpl_dir"], f"{subject}.obj"),
             'vis_path': osp.join(self.root, render_folder, 'vis', f'{rotation:03d}.pt')
         }
 
-        if dataset == 'thuman2':
+        if dataset == 'thuman2_head':
             data_dict.update(
                 {
                     'mesh_path':
@@ -229,8 +243,10 @@ class PIFuDataset():
                         ),
                     'smplx_path':
                         osp.join(self.datasets_dict[dataset]["smplx_dir"], f"{subject}.obj"),
-                    'smpl_param':
-                        osp.join(self.datasets_dict[dataset]["smpl_dir"], f"{subject}.pkl"),
+                    'normalization_path':
+                        osp.join(self.datasets_dict[dataset]["normalization_dir"], f"{subject}.npy"),
+                    # 'smpl_param':
+                    #     osp.join(self.datasets_dict[dataset]["smpl_dir"], f"{subject}.pkl"),
                     'smplx_param':
                         osp.join(self.datasets_dict[dataset]["smplx_dir"], f"{subject}.pkl"),
                 }
@@ -374,7 +390,7 @@ class PIFuDataset():
             hashcode=(hash(f"{data_dict['subject']}_{data_dict['rotation']}")) % (10**8)
         )
 
-        smplx_out, _ = load_fit_body(
+        smplx_out, _ = load_flame(
             fitted_path=data_dict['smplx_param'],
             scale=self.datasets_dict[dataset]['scale'],
             smpl_type='smplx',
@@ -391,7 +407,7 @@ class PIFuDataset():
             }
         )
 
-        return smplx_out.vertices, smplx_dict
+        return smplx_out.vertices * self.datasets_dict[dataset]['scale'], smplx_dict
 
     def compute_voxel_verts(self, data_dict, noise_type=None, noise_scale=None):
 
@@ -458,22 +474,24 @@ class PIFuDataset():
         ) else "smpl"
 
         return_dict = {}
-
+        
         if 'smplx_param' in data_dict.keys() and \
             os.path.exists(data_dict['smplx_param']) and \
                 sum(self.noise_scale) > 0.0:
             smplx_verts, smplx_dict = self.compute_smpl_verts(
                 data_dict, self.noise_type, self.noise_scale
             )
-            smplx_faces = torch.as_tensor(self.smplx.smplx_faces).long()
+            # smplx_faces = torch.as_tensor(self.smplx.smplx_faces).long()
+            smplx_faces = torch.as_tensor(trimesh.load('/cluster/scratch/xiychen/1_flame_122.obj', process=False).faces).long()
             smplx_cmap = torch.as_tensor(np.load(self.smplx.cmap_vert_path)).float()
 
         else:
             smplx_vis = torch.load(data_dict['vis_path']).float()
             return_dict.update({'smpl_vis': smplx_vis})
 
-            smplx_verts = rescale_smpl(data_dict[f"{smpl_type}_path"], scale=100.0)
-            smplx_faces = torch.as_tensor(getattr(self.smplx, f"{smpl_type}_faces")).long()
+            smplx_verts = rescale_smpl(data_dict[f"{smpl_type}_path"], scale=180.0)
+            # smplx_faces = torch.as_tensor(getattr(self.smplx, f"{smpl_type}_faces")).long()
+            smplx_faces = torch.as_tensor(trimesh.load('/cluster/scratch/xiychen/1_flame_122.obj', process=False).faces).long()
             smplx_cmap = self.smplx.cmap_smpl_vids(smpl_type)
 
         smplx_verts = projection(smplx_verts, data_dict['calib']).float()
@@ -596,7 +614,7 @@ class PIFuDataset():
             outside_samples = outside_samples[:self.opt.num_sample_geo // 2]
         else:
             outside_samples = outside_samples[:(self.opt.num_sample_geo - nin)]
-
+        
         samples = np.concatenate([inside_samples, outside_samples])
         labels = np.concatenate(
             [np.ones(inside_samples.shape[0]),
@@ -611,7 +629,7 @@ class PIFuDataset():
     def visualize_sampling3D(self, data_dict, mode='vis'):
 
         # create plot
-        vp = vedo.Plotter(title="", size=(1500, 1500), axes=0, bg='white')
+        # vp = vedo.Plotter(title="", size=(1500, 1500), axes=0, bg='white')
         vis_list = []
 
         assert mode in ['vis', 'sdf', 'normal', 'cmap', 'occ']
@@ -644,6 +662,7 @@ class PIFuDataset():
         mesh = trimesh.Trimesh(verts, data_dict['faces'], process=True)
         mesh.visual.vertex_colors = [128.0, 128.0, 128.0, 255.0]
         vis_list.append(mesh)
+        mesh.export('./mesh1.obj')
 
         if 'voxel_verts' in data_dict.keys():
             print(colored("voxel verts", "green"))
@@ -655,6 +674,7 @@ class PIFuDataset():
             )
             voxel.visual.vertex_colors = [0.0, 128.0, 0.0, 255.0]
             vis_list.append(voxel)
+            voxel.export('./voxel_verts.obj')
 
         if 'smpl_verts' in data_dict.keys():
             print(colored("smpl verts", "green"))
@@ -666,9 +686,11 @@ class PIFuDataset():
             )
             smplx.visual.vertex_colors = [128.0, 128.0, 0.0, 255.0]
             vis_list.append(smplx)
+            smplx.export('./smplx.obj')
 
         # create a picure
         img_pos = [1.0, 0.0, -1.0]
+        img_list = []
         for img_id, img_key in enumerate(['normal_F', 'image', 'T_normal_B']):
             image_arr = (
                 data_dict[img_key].detach().cpu().permute(1, 2, 0).numpy() + 1.0
@@ -676,9 +698,22 @@ class PIFuDataset():
             image_dim = image_arr.shape[0]
             image = vedo.Picture(image_arr).scale(2.0 / image_dim).pos(-1.0, -1.0, img_pos[img_id])
             vis_list.append(image)
+            img_list.append(image_arr)
+            cv2.imwrite(f'{img_id}.png', image_arr[:,:,::-1])
+            print(image_arr.shape)
 
         # create a pointcloud
-        pc = vedo.Points(points, r=15, c=np.float32(colors))
-        vis_list.append(pc)
+        print(points.shape)
+        # pc = vedo.Points(points, r=15, c=np.float32(colors))
+        # vis_list.append(pc)
+        print(np.hstack((points.detach().cpu().numpy(), colors)).shape)
+        print(np.unique(colors))
+        # pdb.set_trace()
+        cloud = PyntCloud(pd.DataFrame(
+            # same arguments that you are passing to visualize_pcl
+            data=np.hstack((points.detach().cpu().numpy(), colors))[:4000],
+            columns=["x", "y", "z", "red", "green", "blue"]))
+        cloud.to_file("pc.ply")
+        exit()
 
         vp.show(*vis_list, bg="white", axes=1.0, interactive=True)

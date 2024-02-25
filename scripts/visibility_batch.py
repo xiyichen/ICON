@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import trimesh
 from tqdm import tqdm
+import glob
 
 # multi-thread
 from functools import partial
@@ -17,7 +18,7 @@ numba.config.THREADING_LAYER = 'workqueue'
 
 sys.path.append(os.path.join(os.getcwd()))
 
-from lib.renderer.mesh import load_fit_body
+from lib.renderer.mesh import load_fit_body, load_flame
 from lib.dataset.mesh_util import projection, load_calib, get_visibility
 
 
@@ -31,11 +32,22 @@ def visibility_subject(subject, dataset, save_folder, rotation, debug):
         device = torch.device(f"cuda:{gpu_id}")
 
         fit_file = f'./data/{dataset}/smplx/{subject}.pkl'
-        rescale_fitted_body, _ = load_fit_body(fit_file, 180.0, smpl_type='smplx', smpl_gender='male')
+        scale = 180
+        # rescale_fitted_body, _ = load_fit_body(fit_file, 180.0, smpl_type='smplx', smpl_gender='male')
+        normalization_file = f'./data/{dataset}/normalizations/{subject}.npy'
+        rescale_fitted_body, _ = load_flame(
+            fit_file, normalization_file, scale, smpl_type='smplx', smpl_gender='male'
+        )
+        rescale_fitted_body.vertices *= scale
         smpl_verts = torch.from_numpy(rescale_fitted_body.vertices).to(device).float()
-        smpl_faces = torch.from_numpy(rescale_fitted_body.faces).to(device).long()
+        # smpl_faces = torch.from_numpy(rescale_fitted_body.faces).to(device).long()
+        smpl_faces = torch.as_tensor(trimesh.load('/cluster/scratch/xiychen/1_flame_122.obj', process=False).faces).to(device).long()
+        
+        rotations = glob.glob(f'/cluster/scratch/xiychen/ICON/data/thuman2_head_36views/{str(subject).zfill(4)}/T_normal_F/*.png')
+        rotations = [int(i.split('/')[-1].split('.')[0]) for i in rotations]
+        rotations.sort()
 
-        for y in range(0, 360, 360 // rotation):
+        for y in rotations:
 
             calib_file = os.path.join(f'{save_folder}/{subject}/calib', f'{y:03d}.txt')
             vis_file = os.path.join(f'{save_folder}/{subject}/vis', f'{y:03d}.pt')
@@ -64,8 +76,8 @@ def visibility_subject(subject, dataset, save_folder, rotation, debug):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-dataset', '--dataset', type=str, default="thuman2", help='dataset name')
-    parser.add_argument('-out_dir', '--out_dir', type=str, default="./debug", help='output dir')
+    parser.add_argument('-dataset', '--dataset', type=str, default="thuman2_head", help='dataset name')
+    parser.add_argument('-out_dir', '--out_dir', type=str, default="./data", help='output dir')
     parser.add_argument('-num_views', '--num_views', type=int, default=36, help='number of views')
     parser.add_argument(
         '-debug', '--debug', action="store_true", help='debug mode, only render one subject'
@@ -93,7 +105,7 @@ if __name__ == "__main__":
     subjects = np.loadtxt(f"./data/{args.dataset}/all.txt", dtype=str)
 
     if args.debug:
-        subjects = subjects[:2]
+        subjects = subjects[:1]
 
     for _ in tqdm(
         p.imap_unordered(

@@ -99,8 +99,10 @@ def load_flame(fitted_path, normalization_path, scale, smpl_type='smplx', smpl_g
     smpl_joints = (Rot.from_euler('xyz', [90,0,0], degrees=True).as_matrix()@smpl_joints.T).T
     smpl_joints = smpl_joints*normalization[0] + normalization[1:].reshape(1, 3)
     smpl_joints = (Rot.from_euler('xyz', [-90,0,0], degrees=True).as_matrix()@smpl_joints.T).T
+    # smpl_joints *= scale
     flame_vertex_ids = np.load('/cluster/scratch/xiychen/data/SMPL-X__FLAME_vertex_ids.npy')
     flame_vertices = smpl_verts[flame_vertex_ids]
+    # flame_vertices *= scale
     flame_faces = trimesh.load('/cluster/scratch/xiychen/1_flame_122.obj', process=False).faces
     flame_mesh = trimesh.Trimesh(flame_vertices, flame_faces, process=False, maintain_order=True)
 
