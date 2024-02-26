@@ -104,8 +104,10 @@ if __name__ == "__main__":
     p = Pool(processes=mp.cpu_count(), maxtasksperchild=1)
     subjects = np.loadtxt(f"./data/{args.dataset}/all.txt", dtype=str)
 
-    if args.debug:
-        subjects = subjects[:1]
+    # if args.debug:
+    #     subjects = subjects[:1]
+    subjects = [str(i).zfill(4) for i in range(20,25)]
+    print(subjects)
 
     for _ in tqdm(
         p.imap_unordered(

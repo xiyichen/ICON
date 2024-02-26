@@ -1,7 +1,7 @@
 name: icon-filter
-ckpt_dir: "./data/ckpt/"
-resume_path: "./data/ckpt/icon-filter.ckpt"
-normal_path: "./data/ckpt/normal.ckpt"
+ckpt_dir: "./data/ckpt_head/"
+resume_path: ""
+normal_path: ""
 results_path: "./results"
 
 dataset:
@@ -26,7 +26,7 @@ dataset:
   noise_scale: [0.0, 0.0]
 
   types: ["thuman2_head"]
-  scales: [180.0]
+  scales: [100.0]
 
 net:
   mlp_dim: [256, 512, 256, 128, 1]
@@ -65,13 +65,12 @@ test_mode: False
 mcube_res: 512
 clean_mesh: True
 num_sanity_val_steps: 1
-overfit: True
 
 momentum: 0.0 
 optim: RMSprop
 
 # training (batch=4, set=agora, rot-6)
-overfit: False
+overfit: True
 num_epoch: 10
 freq_show_train: 0.1
 freq_show_val: 0.3

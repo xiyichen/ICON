@@ -170,7 +170,6 @@ class PIFuDataset():
         for dataset in self.datasets:
 
             split_txt = osp.join(self.root, dataset, f'{split}.txt')
-
             if osp.exists(split_txt):
                 print(f"load from {split_txt}")
                 subject_list += np.loadtxt(split_txt, dtype=str).tolist()
@@ -196,6 +195,7 @@ class PIFuDataset():
             subject_list += subject_list[:self.bsize - len(subject_list) % self.bsize]
             print(colored(f"total: {len(subject_list)}", "yellow"))
             random.shuffle(subject_list)
+        # exit()
 
         # subject_list = ["thuman2/0008"]
         return subject_list
@@ -210,6 +210,7 @@ class PIFuDataset():
             index = 0
         
         mid = index // 18
+        
         subject = self.subject_list[mid].split("/")[1]
         dataset = self.subject_list[mid].split("/")[0]
             
@@ -218,7 +219,6 @@ class PIFuDataset():
         rotations.sort()
         
         rid = index % 18
-
         rotation = rotations[rid]
         render_folder = "/".join([dataset + f"_{self.opt.rotation_num}views", subject])
 
