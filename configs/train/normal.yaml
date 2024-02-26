@@ -10,7 +10,7 @@ dataset:
   val_bsize: 1.0
   test_bsize: 1.0
   types: ["thuman2_head"]
-  scales: [180.0]
+  scales: [100.0]
 
 net:
   in_nml: (('image',3), ('T_normal_F',3), ('T_normal_B',3))

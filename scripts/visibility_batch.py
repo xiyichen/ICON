@@ -32,7 +32,7 @@ def visibility_subject(subject, dataset, save_folder, rotation, debug):
         device = torch.device(f"cuda:{gpu_id}")
 
         fit_file = f'./data/{dataset}/smplx/{subject}.pkl'
-        scale = 180
+        scale = 100
         # rescale_fitted_body, _ = load_fit_body(fit_file, 180.0, smpl_type='smplx', smpl_gender='male')
         normalization_file = f'./data/{dataset}/normalizations/{subject}.npy'
         rescale_fitted_body, _ = load_flame(
@@ -41,9 +41,9 @@ def visibility_subject(subject, dataset, save_folder, rotation, debug):
         rescale_fitted_body.vertices *= scale
         smpl_verts = torch.from_numpy(rescale_fitted_body.vertices).to(device).float()
         # smpl_faces = torch.from_numpy(rescale_fitted_body.faces).to(device).long()
-        smpl_faces = torch.as_tensor(trimesh.load('/cluster/scratch/xiychen/1_flame_122.obj', process=False).faces).to(device).long()
+        smpl_faces = torch.as_tensor(trimesh.load('../1_flame_122.obj', process=False).faces).to(device).long()
         
-        rotations = glob.glob(f'/cluster/scratch/xiychen/ICON/data/thuman2_head_36views/{str(subject).zfill(4)}/T_normal_F/*.png')
+        rotations = glob.glob(f'./data/thuman2_head_36views/{str(subject).zfill(4)}/T_normal_F/*.png')
         rotations = [int(i.split('/')[-1].split('.')[0]) for i in rotations]
         rotations.sort()
 
@@ -54,21 +54,21 @@ def visibility_subject(subject, dataset, save_folder, rotation, debug):
 
             os.makedirs(os.path.dirname(vis_file), exist_ok=True)
 
-            if not os.path.exists(vis_file):
+            # if not os.path.exists(vis_file):
 
-                calib = load_calib(calib_file).to(device)
-                calib_verts = projection(smpl_verts, calib)
-                (xy, z) = calib_verts.split([2, 1], dim=1)
-                smpl_vis = get_visibility(xy, z, smpl_faces)
+            calib = load_calib(calib_file).to(device)
+            calib_verts = projection(smpl_verts, calib)
+            (xy, z) = calib_verts.split([2, 1], dim=1)
+            smpl_vis = get_visibility(xy, z, smpl_faces)
 
-                if debug:
-                    mesh = trimesh.Trimesh(
-                        smpl_verts.cpu().numpy(), smpl_faces.cpu().numpy(), process=False
-                    )
-                    mesh.visual.vertex_colors = torch.tile(smpl_vis, (1, 3)).numpy()
-                    mesh.export(vis_file.replace("pt", "obj"))
+            # if debug:
+            mesh = trimesh.Trimesh(
+                smpl_verts.cpu().numpy(), smpl_faces.cpu().numpy(), process=False
+            )
+            mesh.visual.vertex_colors = torch.tile(smpl_vis, (1, 3)).numpy()
+            mesh.export(vis_file.replace("pt", "obj"))
 
-                torch.save(smpl_vis, vis_file)
+            torch.save(smpl_vis, vis_file)
     finally:
         queue.put(gpu_id)
 
@@ -76,7 +76,7 @@ def visibility_subject(subject, dataset, save_folder, rotation, debug):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-dataset', '--dataset', type=str, default="thuman2_head", help='dataset name')
+    parser.add_argument('-dataset', '--dataset', type=str, default="thuman2_head_100", help='dataset name')
     parser.add_argument('-out_dir', '--out_dir', type=str, default="./data", help='output dir')
     parser.add_argument('-num_views', '--num_views', type=int, default=36, help='number of views')
     parser.add_argument(
@@ -104,9 +104,9 @@ if __name__ == "__main__":
     p = Pool(processes=mp.cpu_count(), maxtasksperchild=1)
     subjects = np.loadtxt(f"./data/{args.dataset}/all.txt", dtype=str)
 
-    # if args.debug:
-    #     subjects = subjects[:1]
-    subjects = [str(i).zfill(4) for i in range(20,25)]
+    if args.debug:
+        subjects = ['0002']
+    subjects = [str(i).zfill(4) for i in range(520,526)]
     print(subjects)
 
     for _ in tqdm(

@@ -489,7 +489,7 @@ class PIFuDataset():
             smplx_vis = torch.load(data_dict['vis_path']).float()
             return_dict.update({'smpl_vis': smplx_vis})
 
-            smplx_verts = rescale_smpl(data_dict[f"{smpl_type}_path"], scale=180.0)
+            smplx_verts = rescale_smpl(data_dict[f"{smpl_type}_path"], scale=100.0)
             # smplx_faces = torch.as_tensor(getattr(self.smplx, f"{smpl_type}_faces")).long()
             smplx_faces = torch.as_tensor(trimesh.load('/cluster/scratch/xiychen/1_flame_122.obj', process=False).faces).long()
             smplx_cmap = self.smplx.cmap_smpl_vids(smpl_type)

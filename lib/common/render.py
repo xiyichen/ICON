@@ -116,8 +116,8 @@ class Render:
         self.size = size
 
         # camera setting
-        self.dis = 150.0
-        self.scale = 180.0
+        self.dis = 100.0
+        self.scale = 100.0
         self.mesh_y_center = 0.0
 
         self.reload_cam()

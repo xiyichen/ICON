@@ -122,54 +122,54 @@ def computePRT(mesh_path, scale, n, order):
     PRT = None
     F = None
 
-    if os.path.exists(bounce_path) and os.path.exists(face_path):
+    # if os.path.exists(bounce_path) and os.path.exists(face_path):
 
-        PRT = np.load(bounce_path)
-        F = np.load(face_path)
+    #     PRT = np.load(bounce_path)
+    #     F = np.load(face_path)
 
-    else:
+    # else:
 
-        mesh = trimesh.load(mesh_path, skip_materials=True, process=False, maintain_order=True)
-        mesh.vertices *= scale
+    mesh = trimesh.load(mesh_path, skip_materials=True, process=False, maintain_order=True)
+    mesh.vertices *= scale
 
-        vectors_orig, phi, theta = sampleSphericalDirections(n)
-        SH_orig = getSHCoeffs(order, phi, theta)
+    vectors_orig, phi, theta = sampleSphericalDirections(n)
+    SH_orig = getSHCoeffs(order, phi, theta)
 
-        w = 4.0 * math.pi / (n * n)
+    w = 4.0 * math.pi / (n * n)
 
-        origins = mesh.vertices
-        normals = mesh.vertex_normals
-        n_v = origins.shape[0]
+    origins = mesh.vertices
+    normals = mesh.vertex_normals
+    n_v = origins.shape[0]
 
-        origins = np.repeat(origins[:, None], n, axis=1).reshape(-1, 3)
-        normals = np.repeat(normals[:, None], n, axis=1).reshape(-1, 3)
-        PRT_all = None
-        for i in range(n):
-            SH = np.repeat(SH_orig[None, (i * n):((i + 1) * n)], n_v,
-                           axis=0).reshape(-1, SH_orig.shape[1])
-            vectors = np.repeat(vectors_orig[None, (i * n):((i + 1) * n)], n_v,
-                                axis=0).reshape(-1, 3)
+    origins = np.repeat(origins[:, None], n, axis=1).reshape(-1, 3)
+    normals = np.repeat(normals[:, None], n, axis=1).reshape(-1, 3)
+    PRT_all = None
+    for i in range(n):
+        SH = np.repeat(SH_orig[None, (i * n):((i + 1) * n)], n_v,
+                        axis=0).reshape(-1, SH_orig.shape[1])
+        vectors = np.repeat(vectors_orig[None, (i * n):((i + 1) * n)], n_v,
+                            axis=0).reshape(-1, 3)
 
-            dots = (vectors * normals).sum(1)
-            front = (dots > 0.0)
+        dots = (vectors * normals).sum(1)
+        front = (dots > 0.0)
 
-            delta = 1e-3 * min(mesh.bounding_box.extents)
+        delta = 1e-3 * min(mesh.bounding_box.extents)
 
-            hits = mesh.ray.intersects_any(origins + delta * normals, vectors)
-            nohits = np.logical_and(front, np.logical_not(hits))
+        hits = mesh.ray.intersects_any(origins + delta * normals, vectors)
+        nohits = np.logical_and(front, np.logical_not(hits))
 
-            PRT = (nohits.astype(np.float32) * dots)[:, None] * SH
+        PRT = (nohits.astype(np.float32) * dots)[:, None] * SH
 
-            if PRT_all is not None:
-                PRT_all += (PRT.reshape(-1, n, SH.shape[1]).sum(1))
-            else:
-                PRT_all = (PRT.reshape(-1, n, SH.shape[1]).sum(1))
+        if PRT_all is not None:
+            PRT_all += (PRT.reshape(-1, n, SH.shape[1]).sum(1))
+        else:
+            PRT_all = (PRT.reshape(-1, n, SH.shape[1]).sum(1))
 
-        PRT = w * PRT_all
-        F = mesh.faces
+    PRT = w * PRT_all
+    F = mesh.faces
 
-        np.save(bounce_path, PRT)
-        np.save(face_path, F)
+    np.save(bounce_path, PRT)
+    np.save(face_path, F)
 
     # NOTE: trimesh sometimes break the original vertex order, but topology will not change.
     # when loading PRT in other program, use the triangle list from trimesh.
