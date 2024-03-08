@@ -234,7 +234,7 @@ class PIFuDataset():
             'vis_path': osp.join(self.root, render_folder, 'vis', f'{rotation:03d}.pt')
         }
 
-        if dataset == 'thuman2_head':
+        if dataset == 'thuman2_head_100':
             data_dict.update(
                 {
                     'mesh_path':
@@ -627,6 +627,7 @@ class PIFuDataset():
         return {'samples_geo': samples, 'labels_geo': labels}
 
     def visualize_sampling3D(self, data_dict, mode='vis'):
+        print(data_dict)
 
         # create plot
         # vp = vedo.Plotter(title="", size=(1500, 1500), axes=0, bg='white')
@@ -691,13 +692,13 @@ class PIFuDataset():
         # create a picure
         img_pos = [1.0, 0.0, -1.0]
         img_list = []
-        for img_id, img_key in enumerate(['normal_F', 'image', 'T_normal_B']):
+        for img_id, img_key in enumerate(['normal_F', 'image', 'T_normal_B', 'T_normal_F']):
             image_arr = (
                 data_dict[img_key].detach().cpu().permute(1, 2, 0).numpy() + 1.0
             ) * 0.5 * 255.0
             image_dim = image_arr.shape[0]
-            image = vedo.Picture(image_arr).scale(2.0 / image_dim).pos(-1.0, -1.0, img_pos[img_id])
-            vis_list.append(image)
+            # image = vedo.Picture(image_arr).scale(2.0 / image_dim).pos(-1.0, -1.0, img_pos[img_id])
+            # vis_list.append(image)
             img_list.append(image_arr)
             cv2.imwrite(f'{img_id}.png', image_arr[:,:,::-1])
             print(image_arr.shape)

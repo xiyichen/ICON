@@ -1,0 +1,1 @@
+python -m lib.dataloader_demo -v -c ./configs/train/icon-filter.yaml

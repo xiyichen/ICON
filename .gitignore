@@ -20,5 +20,5 @@ results/
 libmesh/
 libvoxelize/
 examples*/
-*.sh
+*.txt
 sample_data/

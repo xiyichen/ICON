@@ -1,0 +1,1 @@
+python -m apps.infer -cfg ./configs/icon-filter.yaml -gpu 0 -in_dir ./examples2 -out_dir ./results -export_video -loop_smpl 100 -loop_cloth 200 -hps_type pixie
